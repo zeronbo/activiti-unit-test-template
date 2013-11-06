@@ -1,9 +1,12 @@
 package org.activiti;
 
 import org.activiti.engine.*;
+import org.activiti.engine.impl.ManagementServiceImpl;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
+import org.activiti.engine.test.ActivitiRule;
 import org.activiti.engine.test.Deployment;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,12 +17,12 @@ import java.util.Map;
 
 public class MyUnitTest {
 
-	//@Rule
-	//public ActivitiRule activitiRule = new ActivitiRule();
+	@Rule
+	public org.activiti.engine.test.ActivitiRule activitiRule = new ActivitiRule();
 
 	private static Logger L = LoggerFactory.getLogger(MyUnitTest.class);
 	ProcessEngine processEngine;
-
+	RepositoryService repositoryService;
 	//@Test
 	@Deployment(resources = {"flowfile/my-process.bpmn20.xml"})
 	public void test() {
@@ -31,34 +34,40 @@ public class MyUnitTest {
 	}
 
 	@Test
-	//@Deployment(resources = {"org/activiti/test/VacationRequest.bpmn20.xml"})
+	@Deployment(resources = {"flowfile/VacationRequest.bpmn20.xml"})
 	public void testVacation() {
-
-		//ProcessEngineConfiguration.createProcessEngineConfigurationFromResourceDefault()
-		//		.setDatabaseSchemaUpdate(ProcessEngineConfigurationImpl.DB_SCHEMA_UPDATE_DROP_CREATE)
-		//		.buildProcessEngine();
-
-		processEngine = ProcessEngines.getDefaultProcessEngine();
-		RepositoryService repositoryService = processEngine.getRepositoryService();
-		//加载流程文件
-		repositoryService.createDeployment()
-				.addClasspathResource("flowfile/VacationRequest.bpmn20.xml")
-				.addClasspathResource("flowfile/my-process.bpmn20.xml")
-				.deploy();
-
-		//获取已加载流程数量
-		L.info("Number of process definitions: " + repositoryService.createProcessDefinitionQuery().count());
 
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("employeeName", "Kermit");
 		params.put("numberOfDays", 4);
 		params.put("vacationMotivation", "I'm really tired!");
 
-		RuntimeService runtimeService = processEngine.getRuntimeService();
-		//开始一个指定的流程并传入相关参数
-		ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("vacationRequest", params);
-		L.info("Number of process instances: " + runtimeService.createProcessInstanceQuery().count());
-		completeTask(getTaskService());
+		processEngine = activitiRule.getProcessEngine();
+
+
+		repositoryService = processEngine.getRepositoryService();
+		////加载流程文件
+		//repositoryService.createDeployment()
+		//		.addClasspathResource("flowfile/VacationRequest.bpmn20.xml")
+		//		.addClasspathResource("flowfile/my-process.bpmn20.xml")
+		//		.deploy();
+		//
+		////获取已加载流程数量
+		L.info("Number of process definitions: " + repositoryService.createProcessDefinitionQuery().count());
+		//
+
+		//
+		//RuntimeService runtimeService = processEngine.getRuntimeService();
+
+		//挂起一个流程
+		//suspendProcess();
+
+		//启动一个指定的流程并传入相关参数
+		//ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("vacationRequest", params);
+		//L.info("Number of process instances: " + runtimeService.createProcessInstanceQuery().count());
+		//completeTask(getTaskService());
+		//ManagementService managementService = new ManagementServiceImpl();
+		//L.info("Table name: " + managementService.getTableName(Task.class));
 
 	}
 
@@ -91,6 +100,20 @@ public class MyUnitTest {
 		taskVariables.put("managerMotivation", "We have a tight deadline!");
 		processEngine.getTaskService().complete(task.getId(), taskVariables);
 		L.info("任务完成");
+	}
+
+	/**
+	 * 挂起一个流程
+	 */
+	private void suspendProcess() {
+		//挂起一个指定流程
+		repositoryService.suspendProcessDefinitionByKey("vacationRequest");
+		try {
+			//挂起的流程不能开始执行
+			processEngine.getRuntimeService().startProcessInstanceByKey("vacationRequest");
+		} catch (ActivitiException e) {
+			L.error("流程启动失败", e);
+		}
 	}
 
 }
